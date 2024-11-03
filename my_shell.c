@@ -4,8 +4,31 @@
 
 /* Read a line of characters from stdin. */
 int getcmd(char *buf, int nbuf) {
+  fprintf(1, ">>> ");
+  memset(buf, 0, nbuf);
 
-  // ##### Place your code here
+  char c;
+  int bytes = 0;
+
+  while (read(0, &c, 1) > 0) {
+    if (++bytes > nbuf) {
+      fprintf(2, "command too long\n");
+      return 1;
+    }
+
+    if (c == '\n') {
+      break;
+    }
+
+    buf[bytes - 1] = c;
+  }
+
+  buf[bytes - 1] = '\0';
+
+  if (buf[0] == '\0') {
+    fprintf(2, "no command\n");
+    return 1;
+  }
 
   return 0;
 }
@@ -106,17 +129,33 @@ int main(void) {
   int pcp[2];
   pipe(pcp);
 
-  /* Read and run input commands. */
-  while(getcmd(buf, sizeof(buf)) >= 0){
-    if(fork() == 0)
-      run_command(buf, 100, pcp);
+  int status;
 
-    /*
-      Check if run_command found this is
-      a CD command and run it if required.
-    */
-    int child_status;
-    // ##### Place your code here
+  /* Read and run input commands. */
+  while((status = getcmd(buf, sizeof(buf))) >= 0) {
+    if (status == 1) {
+      continue;
+    }
+
+    int child_status = 0;
+    int pid = fork();
+
+    if (pid == 0) {
+      run_command(buf, 100, pcp);
+    } else if (pid > 0) {
+      wait(&child_status);
+
+      /*
+        Check if run_command found this is
+        a CD command and run it if required.
+      */
+
+      // ##### Place your code here
+    } else {
+      fprintf(2, "fork failed\n");
+      exit(1);
+    }
   }
   exit(0);
 }
+
