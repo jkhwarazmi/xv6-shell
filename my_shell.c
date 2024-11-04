@@ -42,7 +42,9 @@ void run_command(char *buf, int nbuf, int *pcp) {
 
   /* Useful data structures and flags. */
   char *arguments[10];
+  char arg_strings[10][nbuf];
   int numargs = 0;
+  int len = 0;
   /* Word start/end */
   int ws = 1;
   int we = 0;
@@ -59,8 +61,7 @@ void run_command(char *buf, int nbuf, int *pcp) {
 
   int i = 0;
   /* Parse the command character by character. */
-  for (; i < nbuf; i++) {
-
+  for (; i < nbuf && buf[i] != '\0'; i++) {
     /* Parse the current character and set-up various flags:
        sequence_cmd, redirection, pipe_cmd and similar. */
 
@@ -69,13 +70,52 @@ void run_command(char *buf, int nbuf, int *pcp) {
     if (!(redirection_left || redirection_right)) {
       /* No redirection, continue parsing command. */
 
-      // Place your code here.
+      if (buf[i] == ' ' || buf[i] == '\t') {
+        if (ws) {
+          continue;
+        } else if (we) {
+          we = 0;
+          ws = 1;
+          arg_strings[numargs - 1][len] = '\0';
+          len = 0;
+        }
+      } else {
+        if (ws) {
+          ws = 0;
+          we = 1;
+          numargs++;
+        }
+
+        if (numargs > 10) {
+          fprintf(2, "too many arguments\n");
+          exit(1);
+        }
+
+        if (len >= nbuf) {
+          fprintf(2, "argument too long\n");
+          exit(1);
+        }
+
+        arg_strings[numargs - 1][len] = buf[i];
+        len++;
+      }
     } else {
       /* Redirection command. Capture the file names. */
 
       // ##### Place your code here.
     }
   }
+
+  // If not space at end, null terminate last argument
+  if (we) {
+    arg_strings[numargs - 1][len] = '\0';
+  }
+
+  // "Copy" arguments to arguments array
+  for (int i = 0; i < numargs; i++) {
+    arguments[i] = arg_strings[i];
+  }
+  arguments[numargs] = 0;
 
   /*
     Sequence command. Continue this command in a new process.
@@ -116,7 +156,20 @@ void run_command(char *buf, int nbuf, int *pcp) {
     if (pipe_cmd) {
       // ##### Place your code here.
     } else {
-      // ##### Place your code here.
+      int pid = fork();
+
+      if (pid > 0) {
+        wait(0);
+      } else if (pid == 0) {
+        exec(arguments[0], arguments);
+
+        // If exec fails, exit
+        fprintf(2, "exec %s failed\n", arguments[0]);
+        exit(1);
+      } else {
+        fprintf(2, "fork failed\n");
+        exit(1);
+      }
     }
   }
   exit(0);
