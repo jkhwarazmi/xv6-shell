@@ -147,7 +147,14 @@ void run_command(char *buf, int nbuf, int *pcp) {
     and exit with '2' to tell the parent process about this.
   */
   if (strcmp(arguments[0], "cd") == 0) {
-    // ##### Place your code here.
+
+    if (numargs != 2) {
+      fprintf(2, "cd requires exactly one argument\n");
+      exit(1);
+    }
+
+    write(pcp[1], arguments[1], strlen(arguments[1]) + 1);
+    exit(2);
   } else {
     /*
       Pipe command: fork twice. Execute the left hand side directly.
@@ -203,7 +210,18 @@ int main(void) {
         a CD command and run it if required.
       */
 
-      // ##### Place your code here
+      if (child_status == 2) {
+        char path[100];
+        memset(path, 0, 100);
+
+        if (read(pcp[0], path, sizeof(path)) < 0) {
+          fprintf(2, "cannot read path\n");
+        } else {
+          if (chdir(path) < 0) {
+            fprintf(2, "cannot cd %s\n", path);
+          }
+        }
+      }
     } else {
       fprintf(2, "fork failed\n");
       exit(1);
