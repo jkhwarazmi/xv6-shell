@@ -65,7 +65,29 @@ void run_command(char *buf, int nbuf, int *pcp) {
     /* Parse the current character and set-up various flags:
        sequence_cmd, redirection, pipe_cmd and similar. */
 
-    /* ##### Place your code here. */
+    switch(buf[i]) {
+      case ';':
+        sequence_cmd = i + 1;
+        break;
+    }
+
+    // Can't start with one of these
+    if (buf[i] == ';') {
+      if (numargs == 0) {
+        buf[i + 1] = '\0';
+        fprintf(2, "command cannot start with %s\n", &buf[i]);
+        exit(1);
+      }
+
+      // Allow no spaces before or after
+      if (we) {
+        we = 0;
+        ws = 1;
+        arg_strings[numargs - 1][len] = '\0';
+        len = 0;
+      }
+      continue;
+    }
 
     if (!(redirection_left || redirection_right)) {
       /* No redirection, continue parsing command. */
@@ -122,11 +144,19 @@ void run_command(char *buf, int nbuf, int *pcp) {
     Wait for it to complete and execute the command following ';'.
   */
   if (sequence_cmd) {
-    sequence_cmd = 0;
-    if (fork() != 0) {
+    int pid = fork();
+
+    if (pid > 0) {
       wait(0);
-      // ##### Place your code here.
+      run_command(buf + sequence_cmd, nbuf - sequence_cmd, pcp);
+    } else if (pid == 0) {
+      run_command(buf, sequence_cmd - 1, pcp);
+      exit(0);
+    } else {
+      fprintf(2, "fork failed\n");
+      exit(1);
     }
+    sequence_cmd = 0;
   }
 
   /*
