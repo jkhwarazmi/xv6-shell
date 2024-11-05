@@ -53,6 +53,7 @@ void run_command(char *buf, int nbuf, int *pcp) {
   int redirection_right = 0;
   char *file_name_l = 0;
   char *file_name_r = 0;
+  char file_name[nbuf];
 
   int p[2];
   int pipe_cmd = 0;
@@ -69,10 +70,16 @@ void run_command(char *buf, int nbuf, int *pcp) {
       case ';':
         sequence_cmd = i + 1;
         break;
+      case '<':
+        redirection_left = 1;
+        break;
+      case '>':
+        redirection_right = 1;
+        break;
     }
 
     // Can't start with one of these
-    if (buf[i] == ';') {
+    if (buf[i] == ';' || buf[i] == '<' || buf[i] == '>') {
       if (numargs == 0) {
         buf[i + 1] = '\0';
         fprintf(2, "command cannot start with %s\n", &buf[i]);
@@ -123,9 +130,34 @@ void run_command(char *buf, int nbuf, int *pcp) {
       }
     } else {
       /* Redirection command. Capture the file names. */
+      i++;
 
-      // ##### Place your code here.
-    }
+      // Skip whitespace
+      while ((buf[i] == ' ' || buf[i] == '\t') && (i < nbuf && buf[i] != '\0')) {
+        i++;
+      }
+
+      if (i >= nbuf || buf[i] == '\0') {
+        fprintf(2, "no filename provided\n");
+        exit(1);
+      }
+
+      int j = 0;
+      while (i < nbuf && buf[i] != ' ' && buf[i] != '\t' && buf[i] != '\0' &&
+        buf[i] != '|' && buf[i] != ';' && buf[i] != '<' && buf[i] != '>') {
+
+        file_name[j] = buf[i];
+        j++;
+        i++;
+      }
+      file_name[j] = '\0';
+
+      if (redirection_left) {
+        file_name_l = file_name;
+      } else {
+        file_name_r = file_name;
+      }
+    } 
   }
 
   // If not space at end, null terminate last argument
@@ -164,10 +196,18 @@ void run_command(char *buf, int nbuf, int *pcp) {
     tie the specified files to std in/out.
   */
   if (redirection_left) {
-    // ##### Place your code here.
+    close(0);
+    if (open(file_name_l, O_RDONLY)) {
+      fprintf(2, "open %s failed\n", file_name_l);
+      exit(1);
+    }
   }
   if (redirection_right) {
-    // ##### Place your code here.
+    close(1);
+    if (open(file_name_r, O_WRONLY | O_CREATE | O_TRUNC) < 0) {
+      fprintf(2, "open %s failed\n", file_name_r);
+      exit(1);
+    }
   }
 
   /* Parsing done. Execute the command. */
