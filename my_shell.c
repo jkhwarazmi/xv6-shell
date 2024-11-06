@@ -70,6 +70,9 @@ void run_command(char *buf, int nbuf, int *pcp) {
       case ';':
         sequence_cmd = i + 1;
         break;
+      case '|':
+        pipe_cmd = i + 1;
+        break;
       case '<':
         redirection_left = 1;
         break;
@@ -79,7 +82,7 @@ void run_command(char *buf, int nbuf, int *pcp) {
     }
 
     // Can't start with one of these
-    if (buf[i] == ';' || buf[i] == '<' || buf[i] == '>') {
+    if (buf[i] == '|' || buf[i] == ';' || buf[i] == '<' || buf[i] == '>') {
       if (numargs == 0) {
         buf[i + 1] = '\0';
         fprintf(2, "command cannot start with %s\n", &buf[i]);
@@ -231,7 +234,47 @@ void run_command(char *buf, int nbuf, int *pcp) {
       Call run_command recursion for the right side of the pipe.
     */
     if (pipe_cmd) {
-      // ##### Place your code here.
+      pipe(p);
+
+      int pid_1 = fork();
+      if (pid_1 == 0) {
+        // Child process for the left-hand command
+        close(1);
+        dup(p[1]);
+
+        close(p[0]);
+        close(p[1]);
+
+        exec(arguments[0], arguments);
+        fprintf(2, "exec %s failed\n", arguments[0]);
+        exit(1);
+      } else if (pid_1 < 0) {
+        fprintf(2, "fork failed\n");
+        exit(1);
+      }
+      
+      int pid_2 = fork();
+      if (pid_2 == 0) {
+        // Child process for the right-hand command
+        close(0);
+        dup(p[0]);
+
+        close(p[0]);
+        close(p[1]);
+
+        run_command(buf + pipe_cmd, nbuf - pipe_cmd, pcp);
+        exit(0);
+      } else if (pid_2 < 0) {
+          fprintf(2, "fork failed\n");
+          exit(1);
+      }
+      close(p[0]);
+      close(p[1]);
+
+      wait(0);  
+      wait(0);  
+
+
     } else {
       int pid = fork();
 
@@ -300,3 +343,18 @@ int main(void) {
   exit(0);
 }
 
+
+/*
+BUGS:
+- Cannot ls in cd directory (xv6 limitation?)
+- > redirection does not work
+- No multilevel redirection
+- No multilevel pipes (i.e. ignores first pipe)
+- ls | grep test = "cannot open test"
+- echo y | xargs echo hi = "hi y | xargs echo hi"
+- pipes don't work (i.e. pingpong | echo doesn't work)
+- semi-colon followed by nothing behaviour? What does Linux do
+- echo hello world to temp should not print hello world
+- ls; should not print error for ;
+- >>> ls;ls>e no filename provided
+*/
