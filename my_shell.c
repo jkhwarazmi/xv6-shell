@@ -178,14 +178,26 @@ void run_command(char *buf, int nbuf, int *pcp) {
   /* Handle sequence command */
   if (sequence_cmd) {
     sequence_cmd = 0;
+
+    // Do not allow this if next command is special character
+    while (*sequence_right == ' ' || *sequence_right == '\t') {
+      sequence_right++;
+    }
+
+    // Remember that ;>filename just creates an empty file so valid
+    if (*sequence_right == ';' || *sequence_right == '|' || *sequence_right == '<') {
+      fprintf(2, "invalid command following ;\n");
+      exit(1);
+    }
+
     int pid = fork();
-    if (pid != 0) {
+    if (pid > 0) {
       wait(0);
-      while (*sequence_right == ' ' || *sequence_right == '\t')
-        sequence_right++;
-      if (*sequence_right != '\0') // Only run the second command if there is one
-        run_command(sequence_right, nbuf - (sequence_right - buf), pcp);
+      run_command(sequence_right, nbuf - (sequence_right - buf), pcp);
       exit(0);
+    } else if (pid < 0) {
+      fprintf(2, "fork failed\n");
+      exit(1);
     }
   }
 
