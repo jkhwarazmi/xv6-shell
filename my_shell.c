@@ -90,6 +90,12 @@ void run_command(char *buf, int nbuf, int *pcp) {
         exit(1);
       }
 
+      // Add support for multiple redirects?
+      if (redirection_left) {
+        fprintf(2, "cannot have multiple left redirections\n");
+        exit(1);
+      }
+      
       // Keep track of the most recent redirection based on which is higher
       redirection_left = redirection_right + 1;
       buf[i] = '\0';
@@ -97,6 +103,11 @@ void run_command(char *buf, int nbuf, int *pcp) {
     }
     // > followed by nothing just means create an empty file so valid
     else if (buf[i] == '>') {
+      if (redirection_right) {
+        fprintf(2, "cannot have multiple right redirections\n");
+        exit(1);
+      }
+
       redirection_right = redirection_left + 1;
       buf[i] = '\0';
       i++;
