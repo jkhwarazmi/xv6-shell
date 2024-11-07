@@ -26,6 +26,7 @@ int getcmd(char *buf, int nbuf) {
   buf[bytes - 1] = '\0';
 
   if (buf[0] == '\0') {
+    fprintf(2, "no command\n");
     return 1;
   }
 
@@ -59,18 +60,33 @@ void run_command(char *buf, int nbuf, int *pcp) {
   for (int i = 0; i < nbuf && buf[i] != '\0'; i++) {
     /* Parse special characters and set flags */
     if (buf[i] == ';') {
+      if (i == 0) {
+        fprintf(2, "no command\n");
+        exit(1);
+      }
+
       sequence_cmd = 1;
       sequence_right = &buf[i + 1];
       buf[i] = '\0';
       break;
     }
     else if (buf[i] == '|') {
+      if (i == 0) {
+        fprintf(2, "no command\n");
+        exit(1);
+      }
+
       pipe_cmd = 1;
       pipe_right = &buf[i + 1];
       buf[i] = '\0';
       break;
     }
     else if (buf[i] == '<') {
+      if (i == 0) {
+        fprintf(2, "no command\n");
+        exit(1);
+      }
+
       redirection_left = 1;
       buf[i] = '\0';
       file_name_l = &buf[i + 1];
