@@ -13,6 +13,9 @@ int getcmd(char *buf, int nbuf) {
   while (read(0, &c, 1) > 0) {
     if (++bytes > nbuf) {
       fprintf(2, "command too long\n");
+
+      // Clear stdin
+      while (read(0, &c, 1) > 0 && c != '\n');
       return 1;
     }
 
@@ -227,8 +230,10 @@ int main(void) {
     exit(1);
   }
 
-  while(getcmd(buf, sizeof(buf)) >= 0) {
-    if(buf[0] == '\0')
+  int cmd_status;
+  while((cmd_status = getcmd(buf, sizeof(buf))) >= 0) {
+    // No command or command too long
+    if(cmd_status)
       continue;
       
     close(pcp[1]); // Close old write end
