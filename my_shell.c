@@ -115,6 +115,11 @@ void run_command(char *buf, int nbuf, int *pcp) {
         ws = 1;
       } else {
         if (ws) {
+          if (numargs >= 10) {
+          fprintf(2, "too many arguments\n");
+          exit(1);
+          }
+
           arguments[numargs++] = &buf[i];
           ws = 0;
           we = 1;
