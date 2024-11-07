@@ -49,8 +49,8 @@ void run_command(char *buf, int nbuf, int *pcp) {
   
   int redirection_left = 0;
   int redirection_right = 0;
-  char *file_name_l = 0;
-  char *file_name_r = 0;
+  char file_name_l[nbuf];
+  char file_name_r[nbuf];
 
   int p[2];
   int pipe_cmd = 0;
@@ -90,29 +90,26 @@ void run_command(char *buf, int nbuf, int *pcp) {
         exit(1);
       }
 
-      redirection_left = 1;
+      // Keep track of the most recent redirection based on which is higher
+      redirection_left = redirection_right + 1;
       buf[i] = '\0';
-      file_name_l = &buf[i + 1];
-      while (file_name_l[0] == ' ') file_name_l++;
       i++;
-      continue;
     }
+    // > followed by nothing just means create an empty file so valid
     else if (buf[i] == '>') {
-      redirection_right = 1;
+      redirection_right = redirection_left + 1;
       buf[i] = '\0';
-      file_name_r = &buf[i + 1];
-      while (file_name_r[0] == ' ') file_name_r++;
       i++;
-      continue;
     }
 
     if (!(redirection_left || redirection_right)) {
       /* Parse regular command arguments */
       if (buf[i] == ' ' || buf[i] == '\t') {
-        if (!we) continue;
-        buf[i] = '\0';
-        we = 0;
-        ws = 1;
+        if (we) {
+          buf[i] = '\0';
+          we = 0;
+          ws = 1;
+        }
       } else {
         if (ws) {
           if (numargs >= 10) {
@@ -127,10 +124,42 @@ void run_command(char *buf, int nbuf, int *pcp) {
       }
     } else {
       /* In redirection mode, collecting filename */
-      if (buf[i] == ' ' || buf[i] == '\t') {
-        buf[i] = '\0';
-        break;
+      // Skip whitespace
+      while ((buf[i] == ' ' || buf[i] == '\t') && (i < nbuf && buf[i] != '\0')) {
+        i++;
       }
+
+      if (i >= nbuf || buf[i] == '\0' || buf[i] == ';' || buf[i] == '|' ||
+        buf[i] == '<' || buf[i] == '>') {
+        fprintf(2, "no filename provided\n");
+        exit(1);
+      }
+
+      int j = 0;
+      char temp[nbuf];
+
+      while (i < nbuf && buf[i] != ' ' && buf[i] != '\t' && buf[i] != '\0' &&
+        buf[i] != '|' && buf[i] != ';' && buf[i] != '<' && buf[i] != '>') {
+
+        temp[j] = buf[i];
+        j++;
+        i++;
+      }
+      temp[j] = '\0';
+
+      if (redirection_left > redirection_right) {
+        strcpy(file_name_l, temp);
+      } else {
+        strcpy(file_name_r, temp);
+      }
+
+      // Skip any trailing spaces
+      while (i < nbuf && (buf[i] == ' ' || buf[i] == '\t')) {
+        i++;
+      }
+
+      // Go back to check we haven't missed a |, ; or redirect
+      i--;
     }
   }
   arguments[numargs] = 0;
